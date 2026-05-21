@@ -1,6 +1,6 @@
 <template>
   <div class="home">
-    <div class="snowflakes">
+    <!-- <div class="snowflakes">
       <div class="snowflake">❄</div>
       <div class="snowflake">❅</div>
       <div class="snowflake">❆</div>
@@ -25,12 +25,12 @@
       <div class="snowflake">❄</div>
       <div class="snowflake">❅</div>
       <div class="snowflake">❆</div>
-    </div>
+    </div> -->
     <div class="hero">
       <div class="container">
         <div class="hero-content">
           <div class="hero-text">
-            <h1>Добро пожаловать в TechMart</h1>
+            <h1>Добро пожаловать в TechnMart</h1>
             <p class="subtitle">Лучший интернет-магазин техники с гарантией качества</p>
             <p class="description">Тысячи товаров от ведущих производителей. Быстрая доставка. Официальная гарантия.</p>
             <router-link to="/catalog" class="btn-primary">Перейти в каталог</router-link>
@@ -95,35 +95,76 @@
       <section class="categories-preview">
         <h2>Популярные категории</h2>
         <div class="categories-grid">
-          <router-link to="/catalog" class="category-card">
+          <router-link :to="{ path: '/catalog', query: { category: 'Ноутбуки' } }" class="category-card">
             <div class="category-icon">💻</div>
             <h3>Ноутбуки</h3>
           </router-link>
-          <router-link to="/catalog" class="category-card">
+          <router-link :to="{ path: '/catalog', query: { category: 'Смартфоны' } }" class="category-card">
             <div class="category-icon">📱</div>
             <h3>Смартфоны</h3>
           </router-link>
-          <router-link to="/catalog" class="category-card">
+          <router-link :to="{ path: '/catalog', query: { category: 'Планшеты' } }" class="category-card">
             <div class="category-icon">📱</div>
             <h3>Планшеты</h3>
           </router-link>
-          <router-link to="/catalog" class="category-card">
+          <router-link :to="{ path: '/catalog', query: { category: 'Наушники' } }" class="category-card">
             <div class="category-icon">🎧</div>
             <h3>Наушники</h3>
           </router-link>
-          <router-link to="/catalog" class="category-card">
+          <router-link :to="{ path: '/catalog', query: { category: 'Мониторы' } }" class="category-card">
             <div class="category-icon">🖥️</div>
             <h3>Мониторы</h3>
           </router-link>
         </div>
       </section>
+      <RecommendationsBlock :key="recommendationsKey" />
     </div>
   </div>
 </template>
 
 <script>
+import RecommendationsBlock from '../components/RecommendationsBlock.vue'
+
 export default {
-  name: 'Home'
+  name: 'Home',
+  components: {
+    RecommendationsBlock
+  },
+  data() {
+    return {
+      recommendationsKey: getRecommendationsKey()
+    }
+  },
+  watch: {
+    '$route'() {
+      this.refreshRecommendationsKey()
+    }
+  },
+  mounted() {
+    window.addEventListener('auth-changed', this.refreshRecommendationsKey)
+  },
+  beforeUnmount() {
+    window.removeEventListener('auth-changed', this.refreshRecommendationsKey)
+  },
+  activated() {
+    this.refreshRecommendationsKey()
+  },
+  methods: {
+    refreshRecommendationsKey() {
+      this.recommendationsKey = getRecommendationsKey()
+    }
+  }
+}
+
+function getRecommendationsKey() {
+  const token = localStorage.getItem('token')
+  if (!token) return 'guest'
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return String(user.id ?? 'auth')
+  } catch {
+    return 'guest'
+  }
 }
 </script>
 

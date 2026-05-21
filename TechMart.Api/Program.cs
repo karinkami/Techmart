@@ -7,7 +7,6 @@ using TechMart.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -16,7 +15,6 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowVueApp",
@@ -28,16 +26,18 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? "Host=localhost;Database=techmart;Username=postgres;Password=postgres";
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Services
 builder.Services.AddScoped<AuthService>();
+builder.Services.Configure<MlServiceOptions>(builder.Configuration.GetSection("MlService"));
+builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
+builder.Services.AddHttpClient<IMlServiceClient, MlServiceClient>();
+builder.Services.AddSingleton<IUserEventPublisher, RedisUserEventPublisher>();
+builder.Services.AddScoped<IUserEventTracker, UserEventTracker>();
 
-// JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-secret-key-that-is-at-least-32-characters-long-for-security";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TechMart";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TechMart";
@@ -61,7 +61,24 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""Return_requests"" (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES ""Users""(id),
+            order_id INTEGER NOT NULL REFERENCES ""Orders""(id),
+            reason TEXT NOT NULL,
+            details TEXT NULL,
+            preferred_resolution VARCHAR(50) NOT NULL,
+            contact_phone VARCHAR(50) NOT NULL,
+            status VARCHAR(50) NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    ");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

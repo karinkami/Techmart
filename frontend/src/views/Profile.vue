@@ -22,7 +22,16 @@
             <span class="value">{{ formatDate(user.createdAt) }}</span>
           </div>
           <div class="profile-actions">
-            <router-link to="/orders" class="btn-orders">📦 Мои заказы</router-link>
+            <router-link to="/orders" class="btn-orders">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                  <path d="M3 7.5V16.5L12 21V12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M21 7.5V16.5L12 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <span>Мои заказы</span>
+            </router-link>
             <button @click="startEdit" class="btn-edit">Редактировать профиль</button>
             <button @click="handleLogout" class="btn-logout">Выйти из аккаунта</button>
           </div>
@@ -155,6 +164,7 @@ export default {
     handleLogout() {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      window.dispatchEvent(new Event('auth-changed'))
       this.$router.push('/')
     },
     formatDate(dateString) {
@@ -288,11 +298,26 @@ export default {
   min-width: 200px;
   box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-orders:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.btn-icon {
+  display: inline-flex;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.btn-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .btn-edit {

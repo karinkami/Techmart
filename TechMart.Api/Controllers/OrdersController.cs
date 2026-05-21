@@ -5,6 +5,7 @@ using System.Security.Claims;
 using TechMart.Api.Data;
 using TechMart.Api.DTOs;
 using TechMart.Api.Models;
+using TechMart.Api.Services;
 
 namespace TechMart.Api.Controllers;
 
@@ -14,10 +15,12 @@ namespace TechMart.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IUserEventTracker _userEventTracker;
 
-    public OrdersController(AppDbContext context)
+    public OrdersController(AppDbContext context, IUserEventTracker userEventTracker)
     {
         _context = context;
+        _userEventTracker = userEventTracker;
     }
 
     [HttpPost]
@@ -61,6 +64,25 @@ public class OrdersController : ControllerBase
 
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
+
+            foreach (var cartItem in cartItems)
+            {
+                try
+                {
+                    await _userEventTracker.TrackAsync(new UserEventMessage
+                    {
+                        UserId = userId,
+                        EventType = "purchase",
+                        ProductId = cartItem.ProductId,
+                        Quantity = cartItem.Quantity,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                catch
+                {
+                    // Не блокируем оформление заказа при недоступности ML.
+                }
+            }
 
             // Создаем элементы заказа
             foreach (var cartItem in cartItems)

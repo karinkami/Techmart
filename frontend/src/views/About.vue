@@ -1,31 +1,5 @@
 <template>
   <div class="about">
-    <div class="snowflakes">
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-      <div class="snowflake">❄</div>
-      <div class="snowflake">❅</div>
-      <div class="snowflake">❆</div>
-    </div>
     <div class="about-hero">
       <div class="container">
         <h1>О нас</h1>
@@ -37,9 +11,9 @@
       <section class="about-section">
         <div class="section-content">
           <div class="section-text">
-            <h2>TechMart - ваш надежный партнер в мире техники</h2>
+            <h2>TechnMart - ваш надежный партнер в мире техники</h2>
             <p>
-              TechMart - это современный интернет-магазин техники, который предлагает широкий 
+              TechnMart - это современный интернет-магазин техники, который предлагает широкий 
               ассортимент качественных товаров от ведущих производителей. Мы работаем с 2020 года 
               и за это время заслужили доверие тысяч клиентов по всей стране.
             </p>

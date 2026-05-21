@@ -2,7 +2,7 @@
   <div id="app">
     <nav class="navbar">
       <div class="container">
-        <router-link to="/" class="logo">TechMart</router-link>
+        <router-link to="/" class="logo">TechnMart</router-link>
         <div class="nav-links">
           <div class="main-nav">
             <router-link to="/">🏠 Главная</router-link>
@@ -35,9 +35,10 @@
     </main>
     <Toast ref="toast" />
     <ConfirmDialog ref="confirmDialog" />
+    <ChatWidget />
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2025 TechMart. Все права защищены.</p>
+        <p>&copy; 2026 TechnMart. Все права защищены.</p>
       </div>
     </footer>
   </div>
@@ -46,12 +47,14 @@
 <script>
 import Toast from './components/Toast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import ChatWidget from './components/ChatWidget.vue'
 
 export default {
   name: 'App',
   components: {
     Toast,
-    ConfirmDialog
+    ConfirmDialog,
+    ChatWidget
   },
   data() {
     return {

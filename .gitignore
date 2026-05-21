@@ -1,0 +1,25 @@
+# .NET
+**/bin/
+**/obj/
+.vs/
+.idea/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Python
+ml-service/.venv/
+__pycache__/
+*.pyc
+
+# Secrets and local config
+ml-service/.env
+**/appsettings.Development.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

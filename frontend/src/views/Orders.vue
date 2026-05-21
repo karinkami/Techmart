@@ -33,6 +33,14 @@
             <div class="order-total">
               <span class="total-label">Итого:</span>
               <span class="total-amount">{{ formatPrice(order.totalAmount) }} ₽</span>
+              <button
+                v-if="canRequestReturn(order)"
+                class="btn-return"
+                @click="openReturnModal(order)"
+              >
+                Оформить возврат
+              </button>
+              <span v-else-if="hasActiveReturn(order.id)" class="return-badge">Заявка на возврат создана</span>
             </div>
           </div>
 
@@ -94,6 +102,59 @@
         </div>
       </div>
     </div>
+
+    <div v-if="returnModalOpen" class="modal-backdrop" @click.self="closeReturnModal">
+      <div class="modal">
+        <h3>Оформление возврата</h3>
+        <p class="modal-subtitle">Заказ #{{ returnForm.orderId }}</p>
+
+        <div class="form-group">
+          <label>Причина возврата *</label>
+          <select v-model="returnForm.reason">
+            <option value="">Выберите причину</option>
+            <option value="Не подошел товар">Не подошел товар</option>
+            <option value="Товар с дефектом">Товар с дефектом</option>
+            <option value="Пришел не тот товар">Пришел не тот товар</option>
+            <option value="Другое">Другое</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Что именно не так / комментарий</label>
+          <textarea
+            v-model.trim="returnForm.details"
+            rows="4"
+            placeholder="Опишите проблему, это поможет быстрее обработать заявку"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Предпочтительное решение *</label>
+          <select v-model="returnForm.preferredResolution">
+            <option value="refund">Возврат денег</option>
+            <option value="exchange">Обмен товара</option>
+            <option value="service">Диагностика/ремонт</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Контактный телефон *</label>
+          <input
+            v-model.trim="returnForm.contactPhone"
+            type="text"
+            placeholder="+7 (___) ___-__-__"
+          />
+        </div>
+
+        <div v-if="returnError" class="error-text">{{ returnError }}</div>
+        <div class="modal-actions">
+          <button class="btn-secondary" :disabled="returnSubmitting" @click="closeReturnModal">Отмена</button>
+          <button class="btn-primary" :disabled="returnSubmitting" @click="submitReturnRequest">
+            {{ returnSubmitting ? 'Отправка...' : 'Отправить заявку' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -107,11 +168,22 @@ export default {
       orders: [],
       loading: true,
       error: '',
-      imageErrors: new Set()
+      imageErrors: new Set(),
+      returnRequestsByOrder: {},
+      returnModalOpen: false,
+      returnSubmitting: false,
+      returnError: '',
+      returnForm: {
+        orderId: null,
+        reason: '',
+        details: '',
+        preferredResolution: 'refund',
+        contactPhone: ''
+      }
     }
   },
   async mounted() {
-    await this.loadOrders()
+    await Promise.all([this.loadOrders(), this.loadReturnRequests()])
   },
   methods: {
     async loadOrders() {
@@ -168,6 +240,69 @@ export default {
         'cancelled': 'status-cancelled'
       }
       return classMap[status] || ''
+    },
+    canRequestReturn(order) {
+      const normalized = String(order?.status || '').trim().toLowerCase()
+      const eligible = normalized === 'delivered' || normalized === 'completed' || normalized === 'done'
+      return eligible && !this.hasActiveReturn(order.id)
+    },
+    hasActiveReturn(orderId) {
+      return Boolean(this.returnRequestsByOrder[orderId])
+    },
+    async loadReturnRequests() {
+      try {
+        const response = await api.get('/returns/mine')
+        const map = {}
+        for (const req of response.data || []) {
+          if (!map[req.orderId] && ['pending', 'in_review', 'approved'].includes(req.status)) {
+            map[req.orderId] = true
+          }
+        }
+        this.returnRequestsByOrder = map
+      } catch (e) {
+        console.error('Ошибка загрузки заявок на возврат:', e)
+      }
+    },
+    openReturnModal(order) {
+      this.returnForm.orderId = order.id
+      this.returnForm.reason = ''
+      this.returnForm.details = ''
+      this.returnForm.preferredResolution = 'refund'
+      this.returnForm.contactPhone = order.phone || ''
+      this.returnError = ''
+      this.returnModalOpen = true
+    },
+    closeReturnModal() {
+      this.returnModalOpen = false
+      this.returnError = ''
+    },
+    async submitReturnRequest() {
+      this.returnError = ''
+      if (!this.returnForm.orderId || !this.returnForm.reason || !this.returnForm.contactPhone) {
+        this.returnError = 'Заполните обязательные поля: причина и контактный телефон.'
+        return
+      }
+      this.returnSubmitting = true
+      try {
+        await api.post('/returns', {
+          orderId: this.returnForm.orderId,
+          reason: this.returnForm.reason,
+          details: this.returnForm.details || null,
+          preferredResolution: this.returnForm.preferredResolution,
+          contactPhone: this.returnForm.contactPhone
+        })
+        this.$root.$toast?.success('Заявка на возврат отправлена')
+        this.returnRequestsByOrder = {
+          ...this.returnRequestsByOrder,
+          [this.returnForm.orderId]: true
+        }
+        this.closeReturnModal()
+      } catch (e) {
+        console.error('Ошибка отправки заявки на возврат:', e)
+        this.returnError = e.response?.data?.message || 'Не удалось отправить заявку. Попробуйте позже.'
+      } finally {
+        this.returnSubmitting = false
+      }
     },
     setImageError(itemId) {
       this.imageErrors.add(itemId)
@@ -323,6 +458,10 @@ export default {
 
 .order-total {
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
 }
 
 .total-label {
@@ -464,6 +603,82 @@ export default {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-return {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.return-badge {
+  font-size: 0.85rem;
+  color: #ff9800;
+  font-weight: 600;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1300;
+}
+
+.modal {
+  width: min(560px, calc(100vw - 2rem));
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.2rem;
+}
+
+.modal-subtitle {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 0.9rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+}
+
+.error-text {
+  color: #d32f2f;
+  margin-bottom: 0.7rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.btn-secondary {
+  padding: 0.55rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
 }
 
 @media (max-width: 968px) {

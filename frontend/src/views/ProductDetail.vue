@@ -138,6 +138,7 @@ export default {
         const productId = this.$route.params.id
         const response = await api.get(`/products/${productId}`)
         this.product = response.data
+        await this.trackView(productId)
       } catch (error) {
         console.error('Ошибка загрузки товара:', error)
         if (error.response?.status === 404) {
@@ -147,6 +148,18 @@ export default {
         }
       } finally {
         this.loading = false
+      }
+    },
+    async trackView(productId) {
+      if (!localStorage.getItem('token')) return
+      try {
+        await api.post('/events/track', {
+          eventType: 'view',
+          productId: Number(productId),
+          quantity: 1
+        })
+      } catch (e) {
+        console.warn('Не удалось отправить событие view', e)
       }
     },
     formatPrice(price) {

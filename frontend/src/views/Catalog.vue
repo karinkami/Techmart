@@ -5,9 +5,19 @@
       
       <div class="filters-wrapper" v-if="categories.length > 0 || manufacturers.length > 0">
         <div class="filters">
+          <div class="filter-group filter-group-wide">
+            <label>🔎 Поиск</label>
+            <input
+              v-model.trim="searchQuery"
+              type="text"
+              placeholder="Название или описание товара"
+              @keyup.enter="onFiltersChanged"
+            />
+          </div>
+
           <div class="filter-group">
             <label>📂 Категория</label>
-            <select v-model="selectedCategory" @change="loadProducts">
+            <select v-model="selectedCategory" @change="onFiltersChanged">
               <option value="">Все категории</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.name }}
@@ -17,13 +27,27 @@
           
           <div class="filter-group">
             <label>🏭 Производитель</label>
-            <select v-model="selectedManufacturer" @change="loadProducts">
+            <select v-model="selectedManufacturer" @change="onFiltersChanged">
               <option value="">Все производители</option>
               <option v-for="man in manufacturers" :key="man.id" :value="man.id">
                 {{ man.name }}
               </option>
             </select>
           </div>
+
+          <div class="filter-group">
+            <label>↕ Сортировка</label>
+            <select v-model="selectedSort" @change="onFiltersChanged">
+              <option value="new_desc">Сначала новые</option>
+              <option value="price_asc">Цена: по возрастанию</option>
+              <option value="price_desc">Цена: по убыванию</option>
+              <option value="title_asc">Название: А-Я</option>
+              <option value="title_desc">Название: Я-А</option>
+            </select>
+          </div>
+        </div>
+        <div class="filters-actions">
+          <button class="btn-search" @click="onFiltersChanged">Применить</button>
         </div>
       </div>
 
@@ -98,6 +122,8 @@ export default {
       manufacturers: [],
       selectedCategory: '',
       selectedManufacturer: '',
+      searchQuery: '',
+      selectedSort: 'new_desc',
       loading: true,
       imageErrors: new Set(),
       addingToCart: null
@@ -109,28 +135,85 @@ export default {
     }
   },
   async mounted() {
-    await Promise.all([
-      this.loadCategories(),
-      this.loadManufacturers(),
-      this.loadProducts()
-    ])
+    await Promise.all([this.loadCategories(), this.loadManufacturers()])
+    this.applyFiltersFromRoute()
+    await this.loadProducts()
+  },
+  watch: {
+    '$route.query': {
+      deep: true,
+      async handler() {
+        this.applyFiltersFromRoute()
+        await this.loadProducts()
+      }
+    }
   },
   methods: {
+    normalizeText(value) {
+      return String(value || '').trim().toLowerCase().replace('ё', 'е')
+    },
+    applyFiltersFromRoute() {
+      const { category, categoryId, manufacturerId, search, sort } = this.$route.query
+
+      if (categoryId) {
+        this.selectedCategory = String(categoryId)
+      } else if (category) {
+        const normalizedQueryCategory = this.normalizeText(category)
+        const matched = this.categories.find(c => {
+          const categoryName = this.normalizeText(c.name)
+          return categoryName === normalizedQueryCategory
+            || categoryName.includes(normalizedQueryCategory)
+            || normalizedQueryCategory.includes(categoryName)
+        })
+        this.selectedCategory = matched ? String(matched.id) : ''
+      } else {
+        this.selectedCategory = ''
+      }
+
+      this.selectedManufacturer = manufacturerId ? String(manufacturerId) : ''
+      this.searchQuery = search ? String(search) : ''
+      this.selectedSort = sort ? String(sort) : 'new_desc'
+    },
+    parseSort(sortValue) {
+      switch (sortValue) {
+        case 'price_asc':
+          return { sortBy: 'price', sortDir: 'asc' }
+        case 'price_desc':
+          return { sortBy: 'price', sortDir: 'desc' }
+        case 'title_asc':
+          return { sortBy: 'title', sortDir: 'asc' }
+        case 'title_desc':
+          return { sortBy: 'title', sortDir: 'desc' }
+        case 'new_asc':
+          return { sortBy: 'id', sortDir: 'asc' }
+        default:
+          return { sortBy: 'id', sortDir: 'desc' }
+      }
+    },
+    async onFiltersChanged() {
+      const nextQuery = { ...this.$route.query }
+      delete nextQuery.category
+      nextQuery.categoryId = this.selectedCategory || undefined
+      nextQuery.manufacturerId = this.selectedManufacturer || undefined
+      nextQuery.search = this.searchQuery || undefined
+      nextQuery.sort = this.selectedSort || undefined
+
+      await this.$router.replace({ path: this.$route.path, query: nextQuery })
+    },
     async loadProducts() {
       this.loading = true
       try {
-        const response = await api.get('/products')
-        let filtered = response.data || []
-        
-        if (this.selectedCategory) {
-          filtered = filtered.filter(p => p.categoryId === parseInt(this.selectedCategory))
-        }
-        
-        if (this.selectedManufacturer) {
-          filtered = filtered.filter(p => p.manufacturerId === parseInt(this.selectedManufacturer))
-        }
-        
-        this.products = filtered
+        const { sortBy, sortDir } = this.parseSort(this.selectedSort)
+        const response = await api.get('/products', {
+          params: {
+            categoryId: this.selectedCategory || undefined,
+            manufacturerId: this.selectedManufacturer || undefined,
+            search: this.searchQuery || undefined,
+            sortBy,
+            sortDir
+          }
+        })
+        this.products = response.data || []
       } catch (error) {
         console.error('Ошибка загрузки товаров:', error)
         this.products = []
@@ -253,6 +336,11 @@ export default {
   min-width: 200px;
 }
 
+.filter-group-wide {
+  flex: 2;
+  min-width: 280px;
+}
+
 .filter-group label {
   display: block;
   margin-bottom: 0.5rem;
@@ -275,6 +363,36 @@ export default {
   background-repeat: no-repeat;
   background-position: right 1rem center;
   padding-right: 2.5rem;
+}
+
+.filters input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 1rem;
+  background: white;
+  transition: all 0.3s;
+}
+
+.filters input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filters-actions {
+  margin-top: 1rem;
+}
+
+.btn-search {
+  padding: 0.7rem 1.4rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .filters select:focus {

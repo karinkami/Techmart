@@ -17,13 +17,49 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+    public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+        [FromQuery] int? categoryId,
+        [FromQuery] int? manufacturerId,
+        [FromQuery] string? search,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir)
     {
         try
         {
-            var products = await _context.Products
+            var query = _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Manufacturer)
+                .AsQueryable();
+
+            if (categoryId.HasValue)
+            {
+                query = query.Where(p => p.CategoryId == categoryId.Value);
+            }
+
+            if (manufacturerId.HasValue)
+            {
+                query = query.Where(p => p.ManufacturerId == manufacturerId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var pattern = $"%{search.Trim()}%";
+                query = query.Where(p =>
+                    EF.Functions.ILike(p.Title, pattern) ||
+                    EF.Functions.ILike(p.Description, pattern));
+            }
+
+            var normalizedSortBy = (sortBy ?? "id").Trim().ToLowerInvariant();
+            var isDesc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+
+            query = normalizedSortBy switch
+            {
+                "price" => isDesc ? query.OrderByDescending(p => p.Price) : query.OrderBy(p => p.Price),
+                "title" => isDesc ? query.OrderByDescending(p => p.Title) : query.OrderBy(p => p.Title),
+                _ => isDesc ? query.OrderByDescending(p => p.Id) : query.OrderBy(p => p.Id)
+            };
+
+            var products = await query
                 .ToListAsync();
             
             return Ok(products);

@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<ShoppingCart> ShoppingCart { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<ReturnRequest> ReturnRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -122,6 +123,29 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Product)
                   .WithMany()
                   .HasForeignKey(e => e.ProductId);
+        });
+
+        modelBuilder.Entity<ReturnRequest>(entity =>
+        {
+            entity.ToTable("Return_requests");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.OrderId).HasColumnName("order_id");
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.Details).HasColumnName("details");
+            entity.Property(e => e.PreferredResolution).HasColumnName("preferred_resolution");
+            entity.Property(e => e.ContactPhone).HasColumnName("contact_phone");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId);
+
+            entity.HasOne(e => e.Order)
+                  .WithMany()
+                  .HasForeignKey(e => e.OrderId);
         });
     }
 }
